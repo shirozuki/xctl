@@ -1,5 +1,8 @@
 #!/bin/sh
 
+STEP=1
+VOLUME_MAX=150
+
 invalidopt() {
 	printf 'usage: %s up|down|toggle\n' "$0" >&2
 	exit 2
@@ -17,16 +20,28 @@ modbar_notify() {
 
 case $1 in
 	up)
-		pactl set-sink-volume @DEFAULT_SINK@ +1%
+		vol=$(LC_ALL=C pactl get-sink-volume @DEFAULT_SINK@ | \
+			head -n 1 | \
+			awk '{ print $5 }' | \
+			tr -d '%')
+
+		[ -n "$vol" ] || exit 1
+
+		if [ $((vol + STEP)) -gt "$VOLUME_MAX" ]; then
+			pactl set-sink-volume @DEFAULT_SINK@ "${VOLUME_MAX}%" || exit $?
+		else
+			pactl set-sink-volume @DEFAULT_SINK@ "+${STEP}%" || exit $?
+		fi
+
 		modbar_notify
 		;;
 	down)
-		pactl set-sink-volume @DEFAULT_SINK@ -1%
+		pactl set-sink-volume @DEFAULT_SINK@ "-${STEP}%" || exit $?
 		modbar_notify
 		;;
 
 	toggle)
-		pactl set-sink-mute @DEFAULT_SINK@ toggle
+		pactl set-sink-mute @DEFAULT_SINK@ toggle || exit $?
 		modbar_notify
 		;;
 	*)
