@@ -3,10 +3,16 @@
 DEVICE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/bluetooth-devices"
 ICON="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/critical.png"
 ATTEMPTS=3
+CONNECT_TIMEOUT=5
 
 die() {
 	notify-send -i "$ICON" "Error" "$1"
 	exit "${2:-1}"
+}
+
+connected() {
+	LC_ALL=C bluetoothctl info "$1" 2>/dev/null | \
+		grep -q 'Connected: yes'
 }
 
 modbar_notify() {
@@ -44,10 +50,18 @@ bluetoothctl show | grep -q "Powered: yes" || \
 
 try=1
 while [ "$try" -le "$ATTEMPTS" ]; do
-	bluetoothctl connect "$mac" >/dev/null 2>&1 && break
+	bluetoothctl connect "$mac" >/dev/null 2>&1
+
+	waited=0
+	while [ "$waited" -lt "$CONNECT_TIMEOUT" ]; do
+		connected "$mac" && break 2
+		sleep 1
+		waited=$((waited + 1))
+	done
+
 	try=$((try + 1))
 done
 
-[ "$try" -le "$ATTEMPTS" ] || die "bluetoothctl: Connection attempt failed."
+connected "$mac" || die "bluetoothctl: Connection attempt failed."
 
 modbar_notify
