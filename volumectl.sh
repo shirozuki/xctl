@@ -18,6 +18,11 @@ modbar_notify() {
 	return 0
 }
 
+command -v pactl >/dev/null 2>&1 || {
+	printf '%s: pactl not found\n' "$0" >&2
+	exit 127
+}
+
 case $1 in
 	up)
 		vol=$(LC_ALL=C pactl get-sink-volume @DEFAULT_SINK@ | \
@@ -32,7 +37,6 @@ case $1 in
 		else
 			pactl set-sink-volume @DEFAULT_SINK@ "+${STEP}%" || exit $?
 		fi
-
 		modbar_notify
 		;;
 	down)
@@ -48,4 +52,3 @@ case $1 in
 		invalidopt
 		;;
 esac
-
